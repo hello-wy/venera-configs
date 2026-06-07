@@ -4,7 +4,7 @@ class Komga extends ComicSource {
 
 	key = "komga"
 
-	version = "1.0.0"
+	version = "1.0.1"
 
 	minAppVersion = "1.4.0"
 
@@ -17,16 +17,16 @@ class Komga extends ComicSource {
 			default: "https://demo.komga.org",
 			validator: "^(https?:\\/\\/).+$"
 		},
-		// default_username: {
-		// 	title: "默认账号",
-		// 	type: "input",
-		// 	default: "demo@komga.org"
-		// },
-		// default_password: {
-		// 	title: "默认密码",
-		// 	type: "input",
-		// 	default: "komga-demo"
-		// }
+		default_username: {
+			title: "默认账号",
+			type: "input",
+			default: "demo@komga.org"
+		},
+		default_password: {
+			title: "默认密码",
+			type: "input",
+			default: "komga-demo"
+		}
 	}
 
 	get baseUrl() {
@@ -749,4 +749,3 @@ class Komga extends ComicSource {
 		}
 	}
 }
-

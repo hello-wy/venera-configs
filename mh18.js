@@ -8,7 +8,7 @@ class MH18 extends ComicSource {
   // unique id of the source
   key = "mh18"
 
-  version = "1.0.0"
+  version = "1.0.1"
 
   minAppVersion = "1.4.0"
 
@@ -30,17 +30,18 @@ class MH18 extends ComicSource {
   get headers() {
     return {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
-      "Referer": this.baseUrl
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Referer": `${this.baseUrl}/`
     };
   }
 
   parseComics(doc) {
-    console.warn(doc)
     const result = [];
     for (let item of doc.querySelectorAll(".pb-2")) {
       result.push(new Comic({
         id: item.querySelector("a").attributes["href"],
         title: item.querySelector("h3").text,
+        subTitle: "",
         cover: item.querySelector("img").attributes["src"]
       }))
     }
@@ -59,12 +60,16 @@ class MH18 extends ComicSource {
 
       load: async () => {
         const res = await Network.get(this.baseUrl, this.headers);
+        if (res.status !== 200) {
+          throw `Invalid status code: ${res.status}`;
+        }
         const document = new HtmlDocument(res.body);
         const result = [{ title: "近期更新", comics: [], viewMore: null }];
         for (let item of document.querySelector(".pb-unit-md").querySelectorAll(".slicarda")) {
           result[0].comics.push(new Comic({
             id: item.attributes["href"],
             title: item.querySelector("h3").text,
+            subTitle: "",
             cover: item.querySelector("img").attributes["src"]
           }))
         }
@@ -212,7 +217,7 @@ class MH18 extends ComicSource {
   /// search related
   search = {
     load: async (keyword, options, page) => {
-      const res = await Network.get(`${this.baseUrl}/s/${keyword}?page=${page}`);
+      const res = await Network.get(`${this.baseUrl}/s/${keyword}?page=${page}`, this.headers);
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
@@ -243,7 +248,7 @@ class MH18 extends ComicSource {
       if (!id.startsWith("http")) {
         id = this.baseUrl + id;
       }
-      const res = await Network.get(id);
+      const res = await Network.get(id, this.headers);
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
@@ -283,6 +288,7 @@ class MH18 extends ComicSource {
         recommend.push(new Comic({
           id: item.querySelector("a").attributes["href"],
           title: item.querySelector("h3").text,
+          subTitle: "",
           cover: item.querySelector("img").attributes["src"]
         }));
       }
