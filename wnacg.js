@@ -7,19 +7,20 @@ class Wnacg extends ComicSource {
     // unique id of the source
     key = "wnacg"
 
-    version = "1.0.4"
+    version = "1.0.5"
 
     minAppVersion = "1.0.0"
 
     // update url
     url = "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/wnacg.js"
 
-    static domains = [];
+    static domains = ["wnacg01.cc", "wnacg02.cc", "wnacg03.cc"];
 
     get baseUrl() {
         let selection = this.loadSetting('domainSelection')
-        if (selection === undefined || selection === null) selection = 0
+        if (selection === undefined || selection === null) selection = 1
         selection = parseInt(selection)
+        if (Number.isNaN(selection)) selection = 1
 
         if (selection === 0) {
             // 选择自定义域名
@@ -126,23 +127,23 @@ class Wnacg extends ComicSource {
 
                 if (domains.length > 0) {
                     title = "Update Success"
-                    message = "New domains:\n\n"
+                    message = "Fetched:\n\n"
                 }
             }
         } catch (e) {
-            // 获取失败，使用内置域名
+            // 获取失败，使用自定义域名
         }
 
         if (domains.length == 0) {
             title = "Update Failed"
-            message = `Using built-in domains:\n\n`
+            message = "Using Custom:\n\n"
             domains = Wnacg.domains
         }
 
         for (let i = 0; i < domains.length; i++) {
-            message = message + `Fetched Domain ${i + 1}: ${domains[i]}\n`
+            message = message + `URL ${i + 1}: ${domains[i]}\n`
         }
-        message = message + `\nTotal: ${domains.length} domain(s)`
+        message = message + `\nTotal: ${domains.length} URLs\n\nRe-enter page to refresh`
 
         if (showConfirmDialog) {
             UI.showDialog(
@@ -177,6 +178,7 @@ class Wnacg extends ComicSource {
         return new Comic({
             id: id,
             title: name,
+            subTitle: "",
             cover: image,
             description: info,
         })
@@ -723,35 +725,40 @@ class Wnacg extends ComicSource {
         },
     }
 
-    settings = {
-        refreshDomains: {
-            title: "Refresh Domain List",
-            type: "callback",
-            buttonText: "Refresh",
-            callback: () => this.refreshDomains(true)
-        },
-        refreshDomainsOnStart: {
-            title: "Refresh Domain List on Startup",
-            type: "switch",
-            default: true,
-        },
-        domainSelection: {
-            title: "Domain Selection",
-            type: "select",
-            options: [
-                { value: '0', text: 'Custom Domain' },
-                { value: '1', text: 'Domain 1' },
-                { value: '2', text: 'Domain 2' },
-                { value: '3', text: 'Domain 3' }
-            ],
-            default: "0",
-        },
-        domain0: {
-            title: "Custom Domain",
-            type: "input",
-            validator: String.raw`^(?!:\/\/)(?=.{1,253})([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
-            default: 'wnacg.com',
-        },
+    get settings() {
+        let domainOptions = [{ value: '0', text: 'Custom Domain' }]
+        for (let i = 0; i < Wnacg.domains.length; i++) {
+            domainOptions.push({
+                value: String(i + 1),
+                text: Wnacg.domains[i]
+            })
+        }
+
+        return {
+            refreshDomains: {
+                title: "Refresh Domain List",
+                type: "callback",
+                buttonText: "Refresh",
+                callback: () => this.refreshDomains(true)
+            },
+            refreshDomainsOnStart: {
+                title: "Refresh Domain List on Startup",
+                type: "switch",
+                default: true,
+            },
+            domainSelection: {
+                title: "Domain Selection",
+                type: "select",
+                options: domainOptions,
+                default: "1",
+            },
+            domain0: {
+                title: "Custom Domain",
+                type: "input",
+                validator: String.raw`^(?!:\/\/)(?=.{1,253})([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
+                default: 'wnacg.com',
+            },
+        }
     }
 
     translation = {

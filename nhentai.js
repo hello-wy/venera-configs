@@ -70,7 +70,7 @@ class Nhentai extends ComicSource {
         return new Comic({
             id: id,
             title: name,
-            subtitle: "",
+            subTitle: "",
             cover: this.toAbsoluteMediaUrl(img, true),
             tags: tagsRes,
             description: id,
@@ -137,6 +137,12 @@ class Nhentai extends ComicSource {
     }
 
     parseComicFromApi(item) {
+        let id = item?.id
+        let thumbnail = item?.thumbnail
+        if (id == null || thumbnail == null) {
+            throw `Invalid gallery data: ${JSON.stringify(item)}`
+        }
+
         let lang = "Unknown";
         let tagIds = item.tag_ids || [];
         if (tagIds.includes(12227)) {
@@ -154,12 +160,12 @@ class Nhentai extends ComicSource {
             }
         }
         return new Comic({
-            id: String(item.id),
-            title: item.english_title || item.japanese_title || String(item.id),
-            subtitle: "",
-            cover: this.toAbsoluteMediaUrl(item.thumbnail, true),
+            id: String(id),
+            title: item.english_title || item.japanese_title || String(id),
+            subTitle: "",
+            cover: this.toAbsoluteMediaUrl(thumbnail, true),
             tags: tagsRes,
-            description: String(item.id),
+            description: String(id),
             language: lang
         })
     }
