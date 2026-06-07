@@ -1,14 +1,14 @@
 class ComicWalker extends ComicSource {
   name = "カドコミ";
   key = "comic_walker";
-  version = "1.0.0";
+  version = "1.0.1";
   minAppVersion = "1.6.0";
   url =
     "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/comic_walker.js";
 
   api_key = "ytBrdQ2ZYdRQguqEusVLxQVUgakNnVht";
 
-  latestVersion = "1.4.13";
+  latestVersion = "1.5.12";
 
   api_base = "https://mobileapp.comic-walker.com";
 
@@ -46,10 +46,11 @@ class ComicWalker extends ComicSource {
     } else {
       throw new Error(`Unsupported method: ${method}`);
     }
-    if (
-      response.status === 204
-    ) {
+    if (response.status === 204) {
       return response;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      throw `Invalid status: ${response.status} ${response.body || ""}`;
     }
     response = JSON.parse(response.body);
     if (
@@ -65,10 +66,11 @@ class ComicWalker extends ComicSource {
       } else {
         throw new Error(`Unsupported method: ${method}`);
       }
-      if (
-        response.status === 204
-      ) {
+      if (response.status === 204) {
         return response;
+      }
+      if (response.status < 200 || response.status >= 300) {
+        throw `Invalid status: ${response.status} ${response.body || ""}`;
       }
       response = JSON.parse(response.body);
     }
@@ -81,8 +83,9 @@ class ComicWalker extends ComicSource {
     const resp = await Network.get(itunes_api);
 
     if (resp.status == 200) {
-      response = JSON.parse(resp.body);
-      this.latestVersion = response.version;
+      const response = JSON.parse(resp.body);
+      const version = response?.results?.[0]?.version;
+      if (version) this.latestVersion = version;
     }
 
     await this.refreshToken();

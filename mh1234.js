@@ -5,7 +5,7 @@ class MH1234 extends ComicSource {
     // unique id of the source
     key = "mh1234"
 
-    version = "1.0.1"
+    version = "1.0.2"
 
     minAppVersion = "1.4.0"
 
@@ -45,11 +45,12 @@ class MH1234 extends ComicSource {
         type: "singlePageWithMultiPart",
         load: async () => {
             const result = {};
-            const res = await Network.get(this.baseUrl, this.headers);
+            const res = await this.getHtml(this.baseUrl);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
             const doc = new HtmlDocument(res.body);
+            this.ensureComicPage(res.body);
             const mangaLists = doc.querySelectorAll("div.imgBox");
             if (!mangaLists.length) {
                 throw "未找到首页漫画列表，站点域名或页面结构可能已经变化";
@@ -157,6 +158,7 @@ class MH1234 extends ComicSource {
     }
 
     parseComics(html, onePage = false) {
+        this.ensureComicPage(html);
         const doc = new HtmlDocument(html);
         const comics = [];
         for (let comic of doc.querySelectorAll(".itemBox")) {
@@ -194,17 +196,43 @@ class MH1234 extends ComicSource {
         return value;
     }
 
+    async getHtml(url) {
+        const res = await Network.get(url, this.headers);
+        if (res.status !== 200) return res;
+        const nextUrl = this.parseFingerprintUrl(res.body);
+        if (!nextUrl) return res;
+        const nextRes = await Network.get(nextUrl, this.headers);
+        return nextRes;
+    }
+
+    parseFingerprintUrl(html) {
+        const match = html.match(/<a href=['"]([^'"]*[\?&]fp=-3[^'"]*)['"]/);
+        if (match && match[1]) return match[1];
+        const redirect = html.match(/var redirect_link = ['"]([^'"]+)['"]/);
+        if (!redirect || !redirect[1]) return null;
+        return `${redirect[1]}fp=-3`;
+    }
+
+    ensureComicPage(html) {
+        if (html.includes("redirect_link") && html.includes("tr_uuid")) {
+            throw "站点返回指纹验证页，当前域名无法直接访问";
+        }
+        if (html.includes("is for sale") || html.includes("ww17.") || html.includes("Cashback")) {
+            throw "当前域名已停放或出售，请在设置中填写可用域名";
+        }
+    }
+
     /// category comic loading related
     categoryComics = {
         load: async (category, params, options, page) => {
             if (params.endsWith(".html")) {
-                const res = await Network.get(`${this.baseUrl}${params}`, this.headers);
+                const res = await this.getHtml(`${this.baseUrl}${params}`);
                 if (res.status !== 200) {
                     throw `Invalid status code: ${res.status}`;
                 }
                 return this.parseComics(res.body, true);
             } else {
-                const res = await Network.get(`${this.baseUrl}/list/?filter=${params}-${options[0]}-${options[1]}-${options[2]}&sort=${options[3]}&page=${page}`, this.headers);
+                const res = await this.getHtml(`${this.baseUrl}/list/?filter=${params}-${options[0]}-${options[1]}-${options[2]}&sort=${options[3]}&page=${page}`);
                 if (res.status !== 200) {
                     throw `Invalid status code: ${res.status}`;
                 }
@@ -262,7 +290,7 @@ class MH1234 extends ComicSource {
     /// search related
     search = {
         load: async (keyword, options, page) => {
-            const res = await Network.get(`${this.baseUrl}/search/?keywords=${keyword}&sort=${options[0]}&page=${page}`, this.headers);
+            const res = await this.getHtml(`${this.baseUrl}/search/?keywords=${keyword}&sort=${options[0]}&page=${page}`);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
@@ -288,7 +316,7 @@ class MH1234 extends ComicSource {
     /// single comic related
     comic = {
         loadInfo: async (id) => {
-            const res = await Network.get(`${this.baseUrl}/comic/${id}.html`, this.headers);
+            const res = await this.getHtml(`${this.baseUrl}/comic/${id}.html`);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
@@ -329,7 +357,7 @@ class MH1234 extends ComicSource {
 
         loadEp: async (comicId, epId) => {
             const ids = epId.split("_");
-            const res = await Network.get(`${this.baseUrl}/comic/${ids[0]}/${ids[1]}.html`, this.headers);
+            const res = await this.getHtml(`${this.baseUrl}/comic/${ids[0]}/${ids[1]}.html`);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }

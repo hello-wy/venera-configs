@@ -120,13 +120,13 @@
         "name": "カドコミ",
         "fileName": "comic_walker.js",
         "key": "comic_walker",
-        "version": "1.0.0"
+        "version": "1.0.1"
     },
     {
         "name": "漫画1234",
         "fileName": "mh1234.js",
         "key": "mh1234",
-        "version": "1.0.1"
+        "version": "1.0.2"
     },
     {
         "name": "CCC追漫台",
@@ -186,7 +186,7 @@
         "name": "嗨皮漫画",
         "fileName": "happy.js",
         "key": "happy",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "description": "中国大陆及日韩IP无法访问，遇到403可以尝试切换其他地区网络"
     }
 ]
