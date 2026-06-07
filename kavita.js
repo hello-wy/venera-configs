@@ -4,7 +4,7 @@ class Kavita extends ComicSource {
 
     key = "kavita"
 
-    version = "1.0.0"
+    version = "1.0.1"
 
     minAppVersion = "1.4.0"
 
@@ -14,7 +14,7 @@ class Kavita extends ComicSource {
         base_url: {
             title: "服务器地址",
             type: "input",
-            default: "https://demo.kavita.org",
+            default: "https://demo.kavitareader.com",
             validator: "^(https?:\\/\\/).+$"
         },
     }
@@ -25,6 +25,9 @@ class Kavita extends ComicSource {
             raw = this.settings.base_url.default
         }
         let value = raw.trim()
+        if (value === "https://demo.kavita.org") {
+            value = this.settings.base_url.default
+        }
         if (!/^https?:\/\//i.test(value)) {
             value = `https://${value}`
         }
@@ -329,7 +332,7 @@ class Kavita extends ComicSource {
 
             const allowedCategories = ['all', 'library', 'genre', 'author']
             if (allowedCategories.includes(params[0])) {
-                const { comics, totalPages } = await this.fetchSeriesList(`/api/Series/v2`, { PageNumber: page, PageSize: pageSize }, data)
+                const { comics, totalPages } = await this.fetchSeriesList(`/api/Series/v2`, { PageNumber: page - 1, PageSize: pageSize }, data)
                 return {
                     comics: comics,
                     maxPage: totalPages
@@ -405,7 +408,7 @@ class Kavita extends ComicSource {
                 }
             }
 
-            const { comics, totalPages } = await this.fetchSeriesList(`/api/Series/v2`, { PageNumber: page, PageSize: pageSize }, data)
+            const { comics, totalPages } = await this.fetchSeriesList(`/api/Series/v2`, { PageNumber: page - 1, PageSize: pageSize }, data)
             return {
                 comics: comics,
                 maxPage: totalPages
@@ -466,7 +469,6 @@ class Kavita extends ComicSource {
             const apiKey = this.loadData('apiKey')
             const tagSections = {}
             const isReadable = this.isReadable(data.format)
-            console.log(data)
             if (authors.length) tagSections['作者'] = authors
             if (metadata.genres.length) tagSections['类型'] = metadata.genres.map(item => item.title)
             if (metadata.tags.length) tagSections['标签'] = metadata.tags.map(item => item.title)
@@ -598,6 +600,7 @@ class Kavita extends ComicSource {
         return new Comic({
             id: `${id}`,
             title,
+            subTitle: "",
             cover: this.buildUrl(`/api/Image/series-cover`, { seriesId: id, apiKey: apiKey }),
         })
     }
@@ -622,7 +625,7 @@ class Kavita extends ComicSource {
         if (!text) return null
         return {
             content: JSON.parse(text),
-            page: JSON.parse(res.headers.pagination)
+            page: JSON.parse(res.headers.pagination || "{}")
         }
     }
 

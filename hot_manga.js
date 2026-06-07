@@ -10,7 +10,7 @@ class HotManga extends ComicSource {
 
     key = "hot_manga"
 
-    version = "1.0.0"
+    version = "1.0.1"
 
     minAppVersion = "1.6.0"
 
@@ -26,7 +26,7 @@ class HotManga extends ComicSource {
             "Accept": "application/json",
             "webp": "1",
             "platform": "3",
-            "version": "2024.04.28",
+            "version": "2026.06.07",
             "X-Requested-With": "com.manga2020.app",
         }
     }
@@ -586,7 +586,7 @@ class HotManga extends ComicSource {
             ])
 
             if (results[0].status !== 200) {
-                throw `Invalid status code: ${res.status}`;
+                throw `Invalid status code: ${results[0].status}`;
             }
 
             let data = JSON.parse(results[0].body).results;
@@ -623,75 +623,36 @@ class HotManga extends ComicSource {
             }
         },
         loadEp: async (comicId, epId) => {
-            let attempt = 0;
-            const maxAttempts = 5;
             let res;
             let data;
 
-            while (attempt < maxAttempts) {
-                try {
-
-                    res = await Network.get(
-                        `${this.apiUrl}/api/v3/comic/${comicId}/chapter/${epId}?platform=3&_update=true`,
-                        {
-                            ...this.headers
-                        }
-                    );
-
-                    if (res.status === 210) {
-                        // 210 indicates too frequent access, extract wait time
-                        let waitTime = 40000; // Default wait time 40s
-                        try {
-                            let responseBody = JSON.parse(res.body);
-                            if (
-                                responseBody.message &&
-                                responseBody.message.includes("Expected available in")
-                            ) {
-                                let match = responseBody.message.match(/(\d+)\s*seconds/);
-                                if (match && match[1]) {
-                                    waitTime = parseInt(match[1]) * 1000;
-                                }
-                            }
-                        } catch (e) {
-                            console.log(
-                                "Unable to parse wait time, using default wait time 40s"
-                            );
-                        }
-                        console.log(`Chapter${epId} access too frequent, waiting ${waitTime / 1000}s`);
-                        await new Promise((resolve) => setTimeout(resolve, waitTime));
-                        throw "Retry";
-                    }
-
-                    if (res.status !== 200) {
-                        throw `Invalid status code: ${res.status}`;
-                    }
-
-                    data = JSON.parse(res.body);
-                    // console.log(data.results.chapter);
-                    // Handle image link sorting
-                    let imagesUrls = data.results.chapter.contents.map((e) => e.url);
-
-                    // Replace origin images urls to selected quality images urls
-                    let hdImagesUrls = imagesUrls.map((url) =>
-                        url.replace(
-                            /\.jpg\.h\d+x\.jpg$/,
-                            `.jpg.h${this.imageQuality}x.jpg`
-                        )
-                    )
-
-                    return {
-                        images: hdImagesUrls,
-                    };
-                } catch (error) {
-                    if (error !== "Retry") {
-                        throw error;
-                    }
-                    attempt++;
-                    if (attempt >= maxAttempts) {
-                        throw error;
-                    }
+            res = await Network.get(
+                `${this.apiUrl}/api/v3/comic/${comicId}/chapter/${epId}?platform=3&_update=true`,
+                {
+                    ...this.headers
                 }
+            );
+
+            if (res.status === 210) {
+                throw `访问过于频繁: ${res.body || res.status}`;
             }
+
+            if (res.status !== 200) {
+                throw `Invalid status code: ${res.status}`;
+            }
+
+            data = JSON.parse(res.body);
+            let imagesUrls = data.results.chapter.contents.map((e) => e.url);
+            let hdImagesUrls = imagesUrls.map((url) =>
+                url.replace(
+                    /\.jpg\.h\d+x\.jpg$/,
+                    `.jpg.h${this.imageQuality}x.jpg`
+                )
+            )
+
+            return {
+                images: hdImagesUrls,
+            };
         },
 
         onClickTag: (namespace, tag) => {

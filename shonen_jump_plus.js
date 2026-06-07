@@ -1,7 +1,7 @@
 class ShonenJumpPlus extends ComicSource {
   name = "少年ジャンプ＋";
   key = "shonen_jump_plus";
-  version = "1.1.1";
+  version = "1.1.2";
   minAppVersion = "1.2.1";
   url =
     "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/shonen_jump_plus.js";
@@ -10,7 +10,7 @@ class ShonenJumpPlus extends ComicSource {
   bearerToken = null;
   userAccountId = null;
   tokenExpiry = 0;
-  latestVersion = "4.0.24";
+  latestVersion = "4.0.35";
 
   get headers() {
     return {
@@ -32,14 +32,18 @@ class ShonenJumpPlus extends ComicSource {
   }
 
   async init() {
-    const url = "https://apps.apple.com/jp/app/id875750302";
+    const url = "https://itunes.apple.com/lookup?id=875750302&country=jp";
 
     const resp = await Network.get(url);
+    if (resp.status !== 200) {
+      throw `获取最新版本失败: ${resp.status}`;
+    }
 
-    const match = resp.body.match(/whats-new__latest__version">[^<]*?([\d.]+)</);
+    const data = JSON.parse(resp.body);
+    const version = data?.results?.[0]?.version;
 
-    if (match && match[1]) {
-      this.latestVersion = match[1];
+    if (version) {
+      this.latestVersion = version;
     }
   }
 
@@ -259,7 +263,9 @@ class ShonenJumpPlus extends ComicSource {
       JSON.stringify(payload),
     );
 
-    if (response.status !== 200) throw `Invalid status: ${response.status}`;
+    if (response.status !== 200) {
+      throw `Invalid status: ${response.status} ${response.body || ""}`;
+    }
     return JSON.parse(response.body);
   }
 
@@ -284,6 +290,9 @@ class ShonenJumpPlus extends ComicSource {
       this.headers,
       "",
     );
+    if (response.status !== 200) {
+      throw `获取访问令牌失败: ${response.status} ${response.body || ""}`;
+    }
     const { access_token, user_account_id } = JSON.parse(
       response.body,
     );

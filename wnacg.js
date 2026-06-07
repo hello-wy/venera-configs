@@ -7,14 +7,21 @@ class Wnacg extends ComicSource {
     // unique id of the source
     key = "wnacg"
 
-    version = "1.0.5"
+    version = "1.0.6"
 
     minAppVersion = "1.0.0"
 
     // update url
     url = "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/wnacg.js"
 
-    static domains = ["wnacg01.cc", "wnacg02.cc", "wnacg03.cc"];
+    static domains = ["www.wn05.cfd", "www.wn05.shop", "www.wn08.ru", "www.wn04.cfd", "www.wn04.shop", "www.wnacg.ru"];
+
+    get headers() {
+        return {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "Referer": `${this.baseUrl}/`,
+        }
+    }
 
     get baseUrl() {
         let selection = this.loadSetting('domainSelection')
@@ -28,7 +35,9 @@ class Wnacg extends ComicSource {
             if (!domain0 || domain0.trim() === '') {
                 throw 'Custom domain is not set'
             }
-            return `https://${domain0.trim()}`
+            let domain = domain0.trim()
+            if (/^https?:\/\//i.test(domain)) return domain.replace(/\/$/, "")
+            return `https://${domain}`
         } else {
             // 选择获取的域名 (Domain 1-3)
             let index = selection - 1
@@ -89,15 +98,15 @@ class Wnacg extends ComicSource {
      * @param showConfirmDialog {boolean}
      */
     async refreshDomains(showConfirmDialog) {
-        let url = "https://wn01.link/"
+        let url = "https://wnlink.ru/"
         let title = ""
         let message = ""
         let domains = []
 
         try {
-            let res = await fetch(url)
+            let res = await Network.get(url, this.headers)
             if (res.status == 200) {
-                let html = await res.text()
+                let html = res.body
                 let document = new HtmlDocument(html)
                 // 提取所有链接
                 let links = document.querySelectorAll("a[href]")
@@ -114,7 +123,9 @@ class Wnacg extends ComicSource {
                         // 只提取有效的域名，排除 wn01.link 自身和其他无关链接
                         if (domain &&
                             domain.includes(".") &&
-                            !domain.includes("wn01.link") &&
+                            !domain.includes("wnlink.ru") &&
+                            !domain.includes("wnacg.link") &&
+                            !domain.includes(".link") &&
                             !domain.includes("google.cn") &&
                             !domain.includes("cdn-cgi") &&
                             !seenDomains.has(domain)) {
@@ -203,7 +214,7 @@ class Wnacg extends ComicSource {
              * - for `mixed` type, use param `page` as index. for each index(0-based), return {data: [], maxPage: number?}, data is an array contains Comic[] or {title: string, comics: Comic[], viewMore: string?}
              */
             load: async (page) => {
-                let res = await Network.get(this.baseUrl, {})
+                let res = await Network.get(this.baseUrl, this.headers)
                 if (res.status !== 200) {
                     throw `Invalid Status Code ${res.status}`
                 }
@@ -409,7 +420,7 @@ class Wnacg extends ComicSource {
                 url = `${lr[0]}albums-${lr[1]}`;
             }
 
-            let res = await Network.get(url, {})
+            let res = await Network.get(url, this.headers)
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -439,7 +450,7 @@ class Wnacg extends ComicSource {
                     url = `${this.baseUrl}/albums-favorite_ranking-page-${page}-type-${option}.html`
                 }
 
-                let res = await Network.get(url, {})
+                let res = await Network.get(url, this.headers)
                 if (res.status !== 200) {
                     throw `Invalid Status Code ${res.status}`
                 }
@@ -480,7 +491,7 @@ class Wnacg extends ComicSource {
             if (page !== 0) {
                 url += `&p=${page}`
             }
-            let res = await Network.get(url, {})
+            let res = await Network.get(url, this.headers)
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -517,12 +528,13 @@ class Wnacg extends ComicSource {
          */
         addOrDelFavorite: async (comicId, folderId, isAdding, favoriteId) => {
             if (!isAdding) {
-                let res = await Network.get(`${this.baseUrl}/users-fav_del-id-${favoriteId}.html?ajax=true&_t=${randomDouble(0, 1)}`, {})
+                let res = await Network.get(`${this.baseUrl}/users-fav_del-id-${favoriteId}.html?ajax=true&_t=${randomDouble(0, 1)}`, this.headers)
                 if (res.status !== 200) {
                     throw 'Delete failed'
                 }
             } else {
                 let res = await Network.post(`${this.baseUrl}/users-save_fav-id-${comicId}.html`, {
+                    ...this.headers,
                     'content-type': 'application/x-www-form-urlencoded'
                 }, `favc_id=${folderId}`)
                 if (res.status !== 200) {
@@ -539,7 +551,7 @@ class Wnacg extends ComicSource {
          * @returns {Promise<{folders: {[p: string]: string}, favorited: string[]}>} - `folders` is a map of folder id to folder name, `favorited` is a list of folder id which contains the comic
          */
         loadFolders: async (comicId) => {
-            let res = await Network.get(`${this.baseUrl}/users-addfav-id-210814.html`, {})
+            let res = await Network.get(`${this.baseUrl}/users-addfav-id-210814.html`, this.headers)
             if (res.status !== 200) {
                 throw 'Load failed'
             }
@@ -561,6 +573,7 @@ class Wnacg extends ComicSource {
          */
         addFolder: async (name) => {
             let res = await Network.post(`${this.baseUrl}/users-favc_save-id.html`, {
+                ...this.headers,
                 'content-type': 'application/x-www-form-urlencoded'
             }, `favc_name=${encodeURIComponent(name)}`)
             if (res.status !== 200) {
@@ -574,7 +587,7 @@ class Wnacg extends ComicSource {
          * @returns {Promise<void>} - return any value to indicate success
          */
         deleteFolder: async (folderId) => {
-            let res = await Network.get(`${this.baseUrl}/users-favclass_del-id-${folderId}.html?ajax=true&_t=${randomDouble()}`, {})
+            let res = await Network.get(`${this.baseUrl}/users-favclass_del-id-${folderId}.html?ajax=true&_t=${randomDouble()}`, this.headers)
             if (res.status !== 200) {
                 throw 'Delete failed'
             }
@@ -589,7 +602,7 @@ class Wnacg extends ComicSource {
          */
         loadComics: async (page, folder) => {
             let url = `${this.baseUrl}/users-users_fav-page-${page}-c-${folder}.html.html`
-            let res = await Network.get(url, {})
+            let res = await Network.get(url, this.headers)
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -636,7 +649,7 @@ class Wnacg extends ComicSource {
          * @returns {Promise<ComicDetails>}
          */
         loadInfo: async (id) => {
-            let res = await Network.get(`${this.baseUrl}/photos-index-page-1-aid-${id}.html`, {})
+            let res = await Network.get(`${this.baseUrl}/photos-index-page-1-aid-${id}.html`, this.headers)
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -676,7 +689,7 @@ class Wnacg extends ComicSource {
          */
         loadThumbnails: async (id, next) => {
             next = next || '1'
-            let res = await Network.get(`${this.baseUrl}/photos-index-page-${next}-aid-${id}.html`, {});
+            let res = await Network.get(`${this.baseUrl}/photos-index-page-${next}-aid-${id}.html`, this.headers);
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -701,7 +714,7 @@ class Wnacg extends ComicSource {
          * @returns {Promise<{images: string[]}>}
          */
         loadEp: async (comicId, epId) => {
-            let res = await Network.get(`${this.baseUrl}/photos-gallery-aid-${comicId}.html`, {})
+            let res = await Network.get(`${this.baseUrl}/photos-gallery-aid-${comicId}.html`, this.headers)
             if (res.status !== 200) {
                 throw `Invalid Status Code ${res.status}`
             }
@@ -755,8 +768,8 @@ class Wnacg extends ComicSource {
             domain0: {
                 title: "Custom Domain",
                 type: "input",
-                validator: String.raw`^(?!:\/\/)(?=.{1,253})([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
-                default: 'wnacg.com',
+                validator: String.raw`^(https?:\/\/)?(?=.{1,253})([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`,
+                default: 'www.wnacg.ru',
             },
         }
     }

@@ -5,7 +5,7 @@ class MH1234 extends ComicSource {
     // unique id of the source
     key = "mh1234"
 
-    version = "1.0.0"
+    version = "1.0.1"
 
     minAppVersion = "1.4.0"
 
@@ -16,12 +16,27 @@ class MH1234 extends ComicSource {
         domains: {
             title: "域名",
             type: "input",
-            default: "amh1234.com"
+            default: "https://b.amh1234.com"
         }
     }
 
     get baseUrl() {
-        return `https://b.${this.loadSetting('domains')}`;
+        let raw = this.loadSetting('domains') || this.settings.domains.default;
+        raw = String(raw).trim();
+        if (raw === "amh1234.com") {
+            raw = "b.amh1234.com";
+        }
+        if (!/^https?:\/\//i.test(raw)) {
+            raw = `https://${raw}`;
+        }
+        return raw.replace(/\/$/, "");
+    }
+
+    get headers() {
+        return {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "Referer": `${this.baseUrl}/`,
+        };
     }
 
     // explore page list
@@ -30,12 +45,15 @@ class MH1234 extends ComicSource {
         type: "singlePageWithMultiPart",
         load: async () => {
             const result = {};
-            const res = await Network.get(this.baseUrl);
+            const res = await Network.get(this.baseUrl, this.headers);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
             const doc = new HtmlDocument(res.body);
             const mangaLists = doc.querySelectorAll("div.imgBox");
+            if (!mangaLists.length) {
+                throw "未找到首页漫画列表，站点域名或页面结构可能已经变化";
+            }
             for (let list of mangaLists) {
                 const tabTitle = list.querySelector(".Title").text;
                 const items = [];
@@ -44,6 +62,7 @@ class MH1234 extends ComicSource {
                     items.push(new Comic({
                         id: item.attributes["data-key"],
                         title: item.querySelector("a.txtA").text,
+                        subTitle: "",
                         cover: item.querySelector("img").attributes["src"]
                     }));
                 }
@@ -144,10 +163,12 @@ class MH1234 extends ComicSource {
             comics.push(new Comic({
                 id: comic.attributes["data-key"],
                 title: comic.querySelector(".title").text,
+                subTitle: "",
                 cover: comic.querySelector("img").attributes["src"]
             }));
         }
-        return {comics: comics, maxPage: onePage ? 1 : parseInt(doc.querySelector("#total-page").attributes["value"])};
+        const maxPage = onePage ? 1 : this.parseMaxPage(doc);
+        return {comics: comics, maxPage: maxPage};
     }
 
     parseList(doc) {
@@ -156,30 +177,40 @@ class MH1234 extends ComicSource {
             comics.push(new Comic({
                 id: comic.attributes["data-key"],
                 title: comic.querySelector(".txtA").text,
+                subTitle: "",
                 cover: comic.querySelector("img").attributes["src"]
             }));
         }
         return comics;
     }
 
+    parseMaxPage(doc) {
+        const totalPage = doc.querySelector("#total-page");
+        if (!totalPage) return 1;
+        const value = parseInt(totalPage.attributes["value"]);
+        if (Number.isNaN(value)) {
+            throw "分页数据格式错误";
+        }
+        return value;
+    }
+
     /// category comic loading related
     categoryComics = {
         load: async (category, params, options, page) => {
             if (params.endsWith(".html")) {
-                const res = await Network.get(`${this.baseUrl}${params}`);
+                const res = await Network.get(`${this.baseUrl}${params}`, this.headers);
                 if (res.status !== 200) {
                     throw `Invalid status code: ${res.status}`;
                 }
                 return this.parseComics(res.body, true);
             } else {
-                const res = await Network.get(`${this.baseUrl}/list/?filter=${params}-${options[0]}-${options[1]}-${options[2]}&sort=${options[3]}&page=${page}`);
-                console.warn(`${this.baseUrl}/list/?filter=${params}-${options[0]}-${options[1]}-${options[2]}&sort=${options[3]}&page=${page}`)
+                const res = await Network.get(`${this.baseUrl}/list/?filter=${params}-${options[0]}-${options[1]}-${options[2]}&sort=${options[3]}&page=${page}`, this.headers);
                 if (res.status !== 200) {
                     throw `Invalid status code: ${res.status}`;
                 }
                 const doc = new HtmlDocument(res.body);
                 return {comics: this.parseList(doc),
-                    maxPage: parseInt(doc.querySelector("#total-page").attributes["value"])};
+                    maxPage: this.parseMaxPage(doc)};
             }
         },
         optionLoader: async (category, params) => {
@@ -231,7 +262,7 @@ class MH1234 extends ComicSource {
     /// search related
     search = {
         load: async (keyword, options, page) => {
-            const res = await Network.get(`${this.baseUrl}/search/?keywords=${keyword}&sort=${options[0]}&page=${page}`);
+            const res = await Network.get(`${this.baseUrl}/search/?keywords=${keyword}&sort=${options[0]}&page=${page}`, this.headers);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
@@ -257,7 +288,7 @@ class MH1234 extends ComicSource {
     /// single comic related
     comic = {
         loadInfo: async (id) => {
-            const res = await Network.get(`${this.baseUrl}/comic/${id}.html`);
+            const res = await Network.get(`${this.baseUrl}/comic/${id}.html`, this.headers);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
@@ -298,7 +329,7 @@ class MH1234 extends ComicSource {
 
         loadEp: async (comicId, epId) => {
             const ids = epId.split("_");
-            const res = await Network.get(`${this.baseUrl}/comic/${ids[0]}/${ids[1]}.html`);
+            const res = await Network.get(`${this.baseUrl}/comic/${ids[0]}/${ids[1]}.html`, this.headers);
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`;
             }
